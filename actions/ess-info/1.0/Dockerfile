@@ -1,4 +1,4 @@
-FROM registry.cn-hangzhou.aliyuncs.com/terminus/terminus-golang:1.14
+FROM registry.erda.cloud/erda/terminus-golang:1.14
 
 COPY . /go/src/github.com/erda-project/erda-actions
 WORKDIR /go/src/github.com/erda-project/erda-actions

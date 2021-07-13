@@ -1,9 +1,9 @@
 ### job 配置项
 jobs:
   js:
-    image: registry.cn-hangzhou.aliyuncs.com/dice/js-action:20210121-860f02b6
+    image: registry.erda.cloud/erda-actions/js-action:20210609-398d3be
     envs:
-      BP_DOCKER_BASE_REGISTRY: registry.cn-hangzhou.aliyuncs.com
+      BP_DOCKER_BASE_REGISTRY: registry.erda.cloud
     resources:
       cpu: 1
       mem: 2048

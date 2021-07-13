@@ -24,7 +24,7 @@ resource_types:
   - name: sftp
     type: docker-image
     source:
-      repository: registry.cn-hangzhou.aliyuncs.com/terminus/pipeline-sftp-resource
+      repository: registry.erda.cloud/erda/pipeline-sftp-resource
       tag: v1.0.0
 
 resources:

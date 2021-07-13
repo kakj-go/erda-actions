@@ -1,7 +1,7 @@
 ### SQL脚本执行
 jobs:
   sql:
-    image: registry.cn-hangzhou.aliyuncs.com/terminus/pipeline-sql-resource:v1.1.0
+    image: registry.erda.cloud/erda-actions/pipeline-sql-resource:v1.1.0
     resources:
       cpu: 0.9
       mem: 1024

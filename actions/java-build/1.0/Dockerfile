@@ -1,4 +1,4 @@
-FROM registry.cn-hangzhou.aliyuncs.com/terminus/terminus-golang:1.14 AS builder
+FROM registry.erda.cloud/erda/terminus-golang:1.14 AS builder
 
 LABEL maintainer="jiangzhengdong <zhengdong.jzd@alibaba-inc.com>"
 
@@ -16,8 +16,11 @@ RUN set -x \
 RUN mkdir -p /opt/action/comp && \
     cp -r actions/java-build/1.0/comp/* /opt/action/comp
 
+# newest spot agent
+RUN bash /opt/action/comp/download_spot_agent.sh
+RUN bash /opt/action/comp/download_fonts.sh
 
-FROM registry.cn-hangzhou.aliyuncs.com/terminus/terminus-openjdk:v11.0.6
+FROM registry.erda.cloud/erda/terminus-openjdk:v11.0.6
 
 ARG USER_HOME_DIR="/root"
 
@@ -27,27 +30,16 @@ RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
   && rm -f /tmp/apache-maven.tar.gz \
   && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
 
-RUN  yum remove -y docker \
-                docker-client \
-                docker-client-latest \
-                docker-common \
-                docker-latest \
-                docker-latest-logrotate \
-                docker-logrotate \
-                docker-engine \
-   && yum install -y yum-utils java-1.8.0-openjdk-devel \
+RUN  yum install -y yum-utils java-1.8.0-openjdk-devel-1:1.8.0.272.b10-1.el7_9.x86_64 \
    && yum-config-manager \
          --add-repo \
-         https://download.docker.com/linux/centos/docker-ce.repo \
+         http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo \
    && yum install -y docker-ce-cli \
    && yum clean all
+
 
 ENV MAVEN_HOME /usr/share/maven
 ENV MAVEN_CONFIG "$USER_HOME_DIR/.m2"
 
 COPY --from=builder /opt/action/run /opt/action/run
 COPY --from=builder /opt/action/comp /opt/action/comp
-
-# newest spot agent
-RUN bash /opt/action/comp/download_spot_agent.sh
-RUN bash /opt/action/comp/download_fonts.sh

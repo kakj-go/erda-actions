@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/erda-project/erda/pkg/httpclient"
+	"github.com/erda-project/erda/pkg/http/httpclient"
 	"github.com/erda-project/erda/pkg/retry"
 )
 
@@ -44,37 +44,6 @@ type deployRequest struct {
 	ReleaseId    string                 `json:"releaseId"`
 	EdgeLocation string                 `json:"edgeLocation"`
 	Extra        map[string]interface{} `json:"extra, omitempty"`
-}
-
-type conf struct {
-	OrgID        uint64 `env:"DICE_ORG_ID"`
-	ProjectID    uint64 `env:"DICE_PROJECT_ID"`
-	AppID        uint64 `env:"DICE_APPLICATION_ID"`
-	Workspace    string `env:"DICE_WORKSPACE"`
-	GittarBranch string `env:"GITTAR_BRANCH"`
-	ClusterName  string `env:"DICE_CLUSTER_NAME"`
-	OperatorID   string `env:"DICE_OPERATOR_ID"`
-
-	// used to invoke openapi
-	DiceOpenapiPrefix string `env:"DICE_OPENAPI_ADDR"`
-	DiceOpenapiToken  string `env:"DICE_OPENAPI_TOKEN"`
-	InternalClient    string `env:"DICE_INTERNAL_CLIENT"`
-	UserID            string `env:"DICE_USER_ID"`
-
-	// wd & meta
-	WorkDir  string `env:"WORKDIR"`
-	MetaFile string `env:"METAFILE"`
-
-	PipelineBuildID uint64 `env:"PIPELINE_ID"`
-	PipelineTaskID  uint64 `env:"PIPELINE_TASK_ID"`
-
-	// params
-	ReleaseID         string `env:"ACTION_RELEASE_ID"`
-	ReleaseIDPath     string `env:"ACTION_RELEASE_ID_PATH"`
-	TimeOut           int    `env:"ACTION_TIME_OUT"`
-	Callback          string `env:"ACTION_CALLBACK"`
-	EdgeLocation      string `env:"ACTION_EDGE_LOCATION"`
-	AssignedWorkspace string `env:"ACTION_WORKSPACE"`
 }
 
 type DiceDeployError struct {
