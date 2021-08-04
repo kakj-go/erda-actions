@@ -16,6 +16,7 @@ type Conf struct {
 	OrgId                uint64 `env:"DICE_ORG_ID"`
 	TaskId               uint64 `env:"PIPELINE_TASK_ID"`
 	ProjectId            uint64 `env:"DICE_PROJECT_ID"`
+	PipelineID           uint64 `env:"PIPELINE_ID"`
 	SponsorId            string `env:"DICE_USER_ID"`
 	CommitId             string `env:"GITTAR_COMMIT"`
 	GittarUsername       string `env:"GITTAR_USERNAME"`
@@ -37,6 +38,10 @@ func Load() error {
 
 func ProjectId() uint64 {
 	return cfg.ProjectId
+}
+
+func PipelineID() uint64 {
+	return cfg.PipelineID
 }
 
 func DiceOpenapiToken() string {

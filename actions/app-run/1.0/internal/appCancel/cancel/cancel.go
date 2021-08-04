@@ -36,8 +36,10 @@ func cancelPipeline(pipelineID uint64) error {
 	var resp apistructs.PipelineCreateResponse
 	r, err := httpclient.New(httpclient.WithCompleteRedirect()).
 		Post(conf.DiceOpenapiAddr()).
-		Path(fmt.Sprintf("/api/cicds/%v/actions/cancel", pipelineID)).
-		Header("Authorization", conf.DiceOpenapiToken()).Do().JSON(&resp)
+		Path(fmt.Sprintf("/api/cicds/%v/actions/cancel", conf.PipelineID())).
+		Header("Authorization", conf.DiceOpenapiToken()).
+		JSONBody(&apistructs.PipelineCancelRequest{PipelineID: pipelineID}).
+		Do().JSON(&resp)
 
 	if err != nil {
 		return fmt.Errorf("cancel pipeline error %s", err)
