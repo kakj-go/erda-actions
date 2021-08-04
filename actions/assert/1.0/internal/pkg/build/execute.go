@@ -2,19 +2,20 @@ package build
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/erda-project/erda-actions/actions/assert/1.0/internal/pkg/conf"
 	"github.com/erda-project/erda/pkg/assert"
-	"github.com/erda-project/erda/pkg/envconf"
 	"github.com/erda-project/erda/pkg/encoding/jsonparse"
+	"github.com/erda-project/erda/pkg/envconf"
 )
 
 func Execute() error {
 	var cfg conf.Conf
 	envconf.MustLoad(&cfg)
-
+	logrus.SetOutput(os.Stdout)
 	if err := build(cfg); err != nil {
 		return err
 	}
