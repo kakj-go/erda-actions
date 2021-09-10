@@ -47,7 +47,7 @@ func build(cfg conf.Conf) error {
 
 	mysqlAddon, err := getAddonFetchResponseData(cfg)
 	if err != nil {
-		fmt.Println(fmt.Errorf("getAddonFetchResponseData error %v", err))
+		logrus.Errorf("getAddonFetchResponseData error %v", err)
 		return err
 	}
 	if mysqlAddon == nil {
@@ -67,8 +67,8 @@ func build(cfg conf.Conf) error {
 		return fmt.Errorf("not find %s", mysqlPassword)
 	}
 
-	fmt.Println("----------- execute sql ----------- ")
-	fmt.Println(cfg.Sql)
+	logrus.Infof("----------- execute sql ----------- ")
+	logrus.Infof(cfg.Sql)
 
 	mysqlFile, err := os.Create("mysql-cli.sql")
 	if err != nil {
@@ -88,7 +88,7 @@ func build(cfg conf.Conf) error {
 	cmd.Stderr = &errors
 	err = cmd.Run()
 	if err != nil {
-		fmt.Println(fmt.Errorf("exec sql error %v", err))
+		logrus.Errorf("exec sql error %v", err)
 	}
 
 	// error 信息大于 0
@@ -104,41 +104,47 @@ func build(cfg conf.Conf) error {
 			if strings.TrimSpace(v) == "" {
 				continue
 			}
-			fmt.Println("------ sql exec failed -------")
+			logrus.Infof("------ sql exec failed -------")
 			return fmt.Errorf("%v", v)
 		}
 	}
 
-	fmt.Println("------ sql exec done -------")
+	logrus.Infof("------ sql exec done -------")
 	result, err := getResultMeta(output)
 	if err != nil {
 		return err
 	}
 
-	err = storeMetaFile(&cfg, result)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("------ json parsing -------")
+	logrus.Infof("------ json parsing -------")
 	allOutput, err := parseJson(cfg, result)
 	if err != nil {
 		return err
 	}
-	fmt.Println("------ json parsing done -------")
+	logrus.Infof("------ json parsing done -------")
 
-	fmt.Println("------ output assert -------")
+	logrus.Infof("------ output assert -------")
 	allSuccess := assertValue(cfg, allOutput)
 	if !allSuccess {
 		return fmt.Errorf("asssert faild")
 	}
-	fmt.Println("------ output assert done -------")
+	logrus.Infof("------ output assert done -------")
+
+	allOutput["result"] = result
+	err = storeMetaFile(&cfg, allOutput)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func assertValue(cfg conf.Conf, actualValues map[string]string) bool {
 	var allSuccess = true
 	for _, v := range cfg.OutParams {
+
+		if len(v.Assert) <= 0 {
+			continue
+		}
+
 		success, err := assert.DoAssert(actualValues[v.Key], v.Assert, jsonparse.JsonOneLine(v.Value))
 		if err != nil || !success {
 			allSuccess = false
@@ -169,16 +175,17 @@ func parseJson(cfg conf.Conf, data string) (map[string]string, error) {
 	var allOutput = make(map[string]string)
 
 	for _, express := range cfg.OutParams {
+
+		if len(express.Key) <= 0 || len(express.Expression) <= 0 {
+			continue
+		}
+
 		result := jsonparse.FilterJson([]byte(data), express.Expression, apistructs.APIOutParamSourceBodyJson.String())
 		logrus.Infof("Out Params:")
 		logrus.Infof("  key: %v", express.Key)
 		logrus.Infof("  expr: %v", express.Expression)
 		logrus.Infof("  value: %v", jsonparse.JsonOneLine(result))
 		logrus.Infof("==========")
-		err := simpleRun("/bin/sh", "-c", "echo '"+express.Key+"="+jsonparse.JsonOneLine(result)+"'>> "+cfg.MetaFile)
-		if err != nil {
-			return nil, fmt.Errorf("echod result error: %v", err)
-		}
 		allOutput[express.Key] = jsonparse.JsonOneLine(result)
 	}
 
@@ -191,13 +198,13 @@ func getResultMeta(output bytes.Buffer) (string, error) {
 	var result results
 	err := json.Unmarshal([]byte(v), &result)
 	if err != nil {
-		fmt.Println(fmt.Errorf("unmarshal result error: %v", err))
+		logrus.Errorf("unmarshal result error: %v", err)
 		printJson(v)
 		return "", err
 	} else {
 		rows, err := json.Marshal(result.Rows)
 		if err != nil {
-			fmt.Println(fmt.Errorf("marshal rows error: %v", err))
+			logrus.Errorf("marshal rows error: %v", err)
 			printJson(v)
 			return "", err
 		}
@@ -205,11 +212,11 @@ func getResultMeta(output bytes.Buffer) (string, error) {
 		var prettyJSON bytes.Buffer
 		err = json.Indent(&prettyJSON, rows, "", "\t")
 		if err != nil {
-			fmt.Println(fmt.Errorf("format rows result error: %v", err))
-			fmt.Println(rows)
+			logrus.Errorf("format rows result error: %v", err)
+			logrus.Infof(string(rows))
 			return "", err
 		}
-		fmt.Println(prettyJSON.String())
+		logrus.Infof(prettyJSON.String())
 
 		return prettyJSON.String(), nil
 	}
@@ -219,10 +226,10 @@ func printJson(v string) {
 	var prettyJSON bytes.Buffer
 	err := json.Indent(&prettyJSON, []byte(v), "", "\t")
 	if err != nil {
-		fmt.Println(fmt.Errorf("format result error: %v", err))
-		fmt.Println(v)
+		logrus.Errorf("format result error: %v", err)
+		logrus.Infof(v)
 	} else {
-		fmt.Println("sql select json: ", prettyJSON.String())
+		logrus.Infof("sql select json: ", prettyJSON.String())
 	}
 }
 
@@ -241,15 +248,20 @@ func simpleRunAndPrint(name string, arg ...string) error {
 	return cmd.Run()
 }
 
-func storeMetaFile(cfg *conf.Conf, jsonValue string) error {
+func storeMetaFile(cfg *conf.Conf, results map[string]string) error {
 	meta := apistructs.ActionCallback{
-		Metadata: apistructs.Metadata{
-			{
-				Name:  "result",
-				Value: jsonValue,
-			},
-		},
+		Metadata: apistructs.Metadata{},
 	}
+
+	for key, value := range results {
+		{
+			meta.Metadata = append(meta.Metadata, apistructs.MetadataField{
+				Name:  key,
+				Value: value,
+			})
+		}
+	}
+
 	b, err := json.Marshal(&meta)
 	if err != nil {
 		return err
