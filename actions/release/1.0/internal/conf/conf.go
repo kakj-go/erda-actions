@@ -1,5 +1,10 @@
 package conf
 
+import (
+	"encoding/json"
+	"strconv"
+)
+
 // Conf action 入参
 type Conf struct {
 	WorkDir  string `env:"WORKDIR"`
@@ -75,4 +80,25 @@ type AABInfo struct {
 	PackageName interface{} `json:"packageName"`
 	VersionCode interface{} `json:"versionCode"`
 	VersionName interface{} `json:"versionName"`
+}
+
+func (s AABInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s)
+}
+
+func (s *AABInfo) UnmarshalJSON(data []byte) error {
+	var aABInfoAdaptor AABInfoAdaptor
+	err := json.Unmarshal(data, &aABInfoAdaptor)
+	if err == nil {
+		s.PackageName = aABInfoAdaptor.PackageName
+		s.VersionCode = strconv.FormatInt(aABInfoAdaptor.VersionCode, 10)
+		s.VersionName = aABInfoAdaptor.VersionName
+	}
+	return nil
+}
+
+type AABInfoAdaptor struct {
+	PackageName string `json:"packageName"`
+	VersionCode int64  `json:"versionCode"`
+	VersionName string `json:"versionName"`
 }
