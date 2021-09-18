@@ -55,7 +55,6 @@ func Execute() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("release check 2")
 	//image和services是release的两种模式，一种是用户传入image，然后release做些其他处理，
 	//一种就是传入service，然后release根据配置进行构建出imageAddr, 然后把imageAddr设置进images属性中
 	//这里就是新加的service，根据service构建，然后塞入image中
@@ -74,7 +73,6 @@ func Execute() error {
 	}
 
 	if cfg.ReleaseMobile != nil {
-		fmt.Println("release check 3")
 		var typeCounts int
 		// 移动应用文件资源
 		// 一次release只能release一种类型的移动应用
@@ -141,7 +139,6 @@ func Execute() error {
 				}
 				req.Version = version
 			}
-			fmt.Println("release check 4")
 			// TODO Change get information from configuration to extract from abb file
 			if resourceType == apistructs.ResourceTypeAndroidAppBundle {
 				// info, err := GetAndroidAppBundleInfo(appFilePath)
@@ -206,7 +203,6 @@ func Execute() error {
 				}
 				req.Version = version
 			}
-			fmt.Println("release check 5")
 			if resourceType == apistructs.ResourceTypeH5 {
 				var h5VersionInfo apistructs.H5VersionInfo
 				f, err := ioutil.ReadFile(appFilePath + "/mobileBuild.cfg")
@@ -256,7 +252,6 @@ func Execute() error {
 			})
 		}
 	}
-	fmt.Println("release check 6")
 	// 填充 dice.yml(合并对应环境dice.yml & 填充dice.yml镜像)
 	diceYml, err := fillDiceYml(&cfg, storage)
 	if err != nil && cfg.ReleaseMobile == nil {
@@ -294,7 +289,6 @@ func Execute() error {
 	if err = ioutil.WriteFile("dicehub_release", []byte(releaseID), 0644); err != nil {
 		return errors.Wrap(err, "failed to store release id")
 	}
-	fmt.Println("release check 7")
 	// write metafile
 	metaInfos := make([]apistructs.MetadataField, 0, 1)
 	metaInfos = append(metaInfos, apistructs.MetadataField{
