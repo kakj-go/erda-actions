@@ -1,0 +1,7 @@
+### job 配置项
+jobs:
+  email:
+    image: registry.erda.cloud/erda-actions/email-action:1.0-20211118-f7d652d
+    resources:
+      cpu: 0.1
+      mem: 250
