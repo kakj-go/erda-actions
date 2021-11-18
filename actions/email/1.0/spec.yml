@@ -6,7 +6,7 @@ displayName: 邮件发送
 logoUrl: //terminus-paas.oss-cn-hangzhou.aliyuncs.com/paas-doc/2021/11/18/29ed35ad-0f44-46d7-8ece-e287dc17406e.jpeg
 desc: 邮件发送
 public: true
-supportedVersions: # Deprecated. Please use supportedErdaVersions instead.
+supportedVersions:
   - ">= 3.9"
 supportedErdaVersions:
   - ">= 1.0"
@@ -26,6 +26,6 @@ params:
     required: true
 
 accessibleAPIs:
-  - path: /api/dice/eventbox/actions/smtp-info
+  - path: /api/dice/eventbox/actions/get-smtp-info
     method: GET
     schema: http

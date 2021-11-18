@@ -13,14 +13,13 @@ import (
 	"time"
 
 	"github.com/erda-project/erda-actions/actions/email/1.0/internal/pkg/conf"
-	"github.com/erda-project/erda/apistructs"
 	"github.com/erda-project/erda/pkg/envconf"
 	"github.com/erda-project/erda/pkg/http/httpclient"
 )
 
 func Execute() error {
 	fmt.Println("start send email")
-	fmt.Println("end send email")
+	defer fmt.Println("end send email")
 	var cfg conf.Conf
 	envconf.MustLoad(&cfg)
 
@@ -110,7 +109,7 @@ func Execute() error {
 		password = os.Getenv("SMTP_PASSWORD")
 	}
 
-	fmt.Printf("smtp_host %v, smtp_port %v, smtp_email %v", host, port, email)
+	fmt.Printf("smtp_host %v, smtp_port %v, smtp_email %v \n", host, port, email)
 
 	header := make(map[string]string)
 	header["From"] = "test" + "<" + email + ">"
@@ -147,17 +146,12 @@ type MailSubscriberInfo struct {
 	InsecureSkipVerify bool
 }
 
-type MailSubscriberInfoResp struct {
-	apistructs.Header
-	Data *MailSubscriberInfo `json:"data"`
-}
-
 func erdaSmtpInfo() (*MailSubscriberInfo, error) {
 
 	var resp MailSubscriberInfo
 	response, err := httpclient.New(httpclient.WithCompleteRedirect()).
 		Get(os.Getenv("DICE_OPENAPI_PUBLIC_URL")).
-		Path("/api/dice/eventbox/actions/smtp-info").
+		Path("/api/dice/eventbox/actions/get-smtp-info").
 		Header("Authorization", os.Getenv("DICE_OPENAPI_TOKEN")).Do().JSON(&resp)
 
 	if err != nil {
