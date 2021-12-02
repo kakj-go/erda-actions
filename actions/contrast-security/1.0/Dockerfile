@@ -7,7 +7,6 @@ WORKDIR /erda-actions
 ENV CGO_ENABLED 0
 ENV BUILD_FLAGS="-v -ldflags '-d -s -w' -a -tags netgo -installsuffix netgo"
 RUN export GOPROXY=https://goproxy.io
-RUN go mod vendor
 RUN set -x && eval "GOOS=linux GOARCH=amd64 go build $BUILD_FLAGS -o /opt/action/run actions/contrast-security/1.0/cmd/main.go"
 
 FROM registry.erda.cloud/erda/terminus-centos:base
