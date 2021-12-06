@@ -1,0 +1,81 @@
+name: mysql-confg-sheet
+version: '1.0'
+type: action
+category: test_management
+displayName: mysql 配置单执行器
+desc: 连接 mysql 执行 sql 语句且可以断言和出参
+public: true
+executor:
+  kind: "MYSQLCONFIGSHEET"
+  name: "mysql-config-sheet"
+labels:
+  autotest: true
+  project_level_app: true
+supportedVersions: # Deprecated. Please use supportedErdaVersions instead.
+  - ">= 3.21"
+supportedErdaVersions:
+  - ">= 1.5"
+
+params:
+  - name: datasource
+    desc: 数据源
+  - name: host
+    desc: mysql host
+  - name: port
+    desc: mysql port
+    default: 3306
+  - name: username
+    desc: mysql username
+    default: root
+  - name: password
+    desc: mysql password
+  - name: database
+    desc: 数据库名称
+  - name: executors
+    desc: sql 执行的集合
+    type: struct_array
+    required: true
+    struct:
+      - name: sql
+        type: string
+        required: true
+        desc: sql 语句
+      - name: out_params
+        type: struct_array
+        desc: 出参
+        struct:
+          - name: key
+            required: true
+            desc: 出参名
+          - name: expression
+            required: false
+            desc:  支持 linux jq 表达式 以 . 开头，支持 jackson 以 $. 开头
+      - name: asserts
+        required: false
+        desc: 断言。若接口返回成功，但断言失败，最终结果仍为失败
+        type: struct_array
+        struct:
+          - name: arg
+            required: true
+            desc: 出参名
+          - name: operator
+            required: true
+            type: string
+            desc: 断言，可填写 等于:=,不等于:!=,小于等于:<=,大于等于:>=,大于:>,小于:<,包含:contains,不包含:not_contains,属于:belong,不属于:not_belong,为空:empty,不为空:not_empty,存在:exist,不存在:not_exist
+          - name: value
+            required: false
+            desc: 值
+
+outputsFromParams:
+  - type: jq
+    keyExpr: '[.executors[].out_params] | map(select(. != null )) | [.[][].key]'
+
+outputs:
+  - name: result
+  - name: assert_result
+  - name: error_info
+
+accessibleAPIs:
+  - path: /api/addons/<addonId>
+    method: GET
+    schema: http
