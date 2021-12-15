@@ -62,12 +62,12 @@ params:
 
   - name: ossPath
     type: string
-    desc: OSS 中存放打包后仓库的的路径, 如不设置，则自动配置为 archived-versions/<版本号>
+    desc: OSS 中存放归档后物料的路径, 如不设置，则配置为`<ossArchiveDir>/<版本号>`
     required: false
 
   - name: gitref
     type: string
-    desc: 用于生成版本号。如 v1.1.0 => v1.1.0, release/1.1 => v1.1。gitref 和 ossPath 至少应当设置一个。
+    desc: 用于生成<版本号>。如 v1.1.0 => v1.1.0, release/1.1 => v1.1。gitref 和 ossPath 至少应当设置一个。
     required: false
 
   - name: ossAccessKeyID
@@ -82,7 +82,7 @@ params:
 
   - name: ossArchivedDir
     type: string
-    desc: releases archvied directory
+    desc: 用于生成归档的路径。如不设置，默认为 'archived-versions'
     required: true
     default: archived-versions
 
@@ -98,6 +98,11 @@ params:
     struct:
       - { name: old, type: string, default: , desc: 要替换的原始 registry host, 为空时 action 会自动识别 registy host 并替换 }
       - { name: new, type: string, default: , desc: 要替换的目标 registry host, 为空时不会发生替换 }
+
+  - name: securityContext
+    type: string_array
+    desc: 令服务的 k8s_snippet.container.securityContext.privileged=true
+    required: false
 
 accessibleAPIs:
   - path: /api/repo/<*>

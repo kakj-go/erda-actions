@@ -18,6 +18,8 @@ import (
 	"github.com/erda-project/erda/apistructs"
 	"github.com/erda-project/erda/pkg/envconf"
 	"github.com/erda-project/erda/pkg/filehelper"
+	"github.com/erda-project/erda/pkg/http/httpclient"
+	"github.com/erda-project/erda/pkg/strutil"
 )
 
 var errReleaseTypeCheck = errors.New(`一个release action只能发布一种操作系统类型的移动应用，如果有多种操作系统类型，请拆分成多个release acction`)
@@ -30,12 +32,21 @@ const (
 
 // Execute release action 执行逻辑
 func Execute() error {
-	//time.Sleep(time.Minute*30)
 	logrus.SetOutput(os.Stdout)
 
 	var cfg conf.Conf
 	if err := initEnv(&cfg); err != nil {
 		return err
+	}
+
+	// check application mode
+	app, err := GetApp(cfg.AppID, cfg)
+	if err != nil {
+		return err
+	}
+	// project level application not support release action
+	if app.Mode == string(apistructs.ApplicationModeProjectService) {
+		return fmt.Errorf("project level application not support release action")
 	}
 
 	// generate release create request
@@ -44,7 +55,6 @@ func Execute() error {
 	if err != nil {
 		return err
 	}
-
 	//image和services是release的两种模式，一种是用户传入image，然后release做些其他处理，
 	//一种就是传入service，然后release根据配置进行构建出imageAddr, 然后把imageAddr设置进images属性中
 	//这里就是新加的service，根据service构建，然后塞入image中
@@ -59,7 +69,7 @@ func Execute() error {
 			return err
 		}
 		req.Resources = releaseResources
-		logrus.Infof("uploaded release resources: %+v", releaseResources)
+		fmt.Println(fmt.Sprintf("uploaded release resources: %+v", releaseResources))
 	}
 
 	if cfg.ReleaseMobile != nil {
@@ -81,6 +91,8 @@ func Execute() error {
 			ext := filepath.Ext(appFilePath)
 			if ext == ".apk" {
 				resourceType = apistructs.ResourceTypeAndroid
+			} else if ext == ".aab" {
+				resourceType = apistructs.ResourceTypeAndroidAppBundle
 			} else if ext == ".ipa" {
 				resourceType = apistructs.ResourceTypeIOS
 			} else if ext == "" && filepath.Base(appFilePath) == "dist" {
@@ -127,6 +139,28 @@ func Execute() error {
 				}
 				req.Version = version
 			}
+			// TODO Change get information from configuration to extract from abb file
+			if resourceType == apistructs.ResourceTypeAndroidAppBundle {
+				// info, err := GetAndroidAppBundleInfo(appFilePath)
+				// if err != nil {
+				// 	return err
+				// }
+				if cfg.AABInfo.PackageName == "" {
+					return errors.Errorf("aab's package name is empty")
+				}
+				versionCode := cfg.PipelineID
+				if cfg.AABInfo.VersionCode != "" {
+					versionCode = strutil.String(cfg.AABInfo.VersionCode)
+				}
+				meta["packageName"] = cfg.AABInfo.PackageName
+				meta["version"] = cfg.AABInfo.VersionName
+				meta["buildID"] = versionCode
+				meta["displayName"] = cfg.AABInfo.VersionName
+				if cfg.ReleaseMobile.Version == "" {
+					cfg.ReleaseMobile.Version = strutil.String(cfg.AABInfo.VersionName)
+				}
+				req.Version = strutil.String(cfg.AABInfo.VersionName)
+			}
 
 			if resourceType == apistructs.ResourceTypeIOS {
 				info, err := GetIOSAppInfo(appFilePath)
@@ -169,7 +203,6 @@ func Execute() error {
 				}
 				req.Version = version
 			}
-
 			if resourceType == apistructs.ResourceTypeH5 {
 				var h5VersionInfo apistructs.H5VersionInfo
 				f, err := ioutil.ReadFile(appFilePath + "/mobileBuild.cfg")
@@ -189,7 +222,7 @@ func Execute() error {
 				if err != nil {
 					return err
 				}
-				logrus.Infof("H5VersionInfo is %v", h5VersionInfo)
+				fmt.Println(fmt.Sprintf("H5VersionInfo is %v", h5VersionInfo))
 
 				version := h5VersionInfo.Version
 				buildID := h5VersionInfo.BuildID
@@ -219,14 +252,13 @@ func Execute() error {
 			})
 		}
 	}
-
 	// 填充 dice.yml(合并对应环境dice.yml & 填充dice.yml镜像)
 	diceYml, err := fillDiceYml(&cfg, storage)
 	if err != nil && cfg.ReleaseMobile == nil {
 		return err
 	}
 	req.Dice = diceYml
-	logrus.Infof("composed & filled dice.yml: %v", req.Dice)
+	fmt.Println(fmt.Sprintf("composed & filled dice.yml: %v", req.Dice))
 
 	// migration sql release
 	migrationReleaseID, err := migration(&cfg)
@@ -238,9 +270,13 @@ func Execute() error {
 		req.Resources = []apistructs.ReleaseResource{}
 	}
 	if migrationReleaseID != "" {
+		name := apistructs.MigrationResourceKey
+		if cfg.MigrationType == "erda" {
+			name = "erda-migration"
+		}
 		migResource := apistructs.ReleaseResource{
 			Type: apistructs.ResourceTypeMigration,
-			Name: apistructs.MigrationResourceKey,
+			Name: name,
 			URL:  migrationReleaseID,
 		}
 		req.Resources = append(req.Resources, migResource)
@@ -251,13 +287,12 @@ func Execute() error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("releaseId: %s", releaseID)
+	fmt.Println(fmt.Sprintf("releaseId: %s", releaseID))
 
 	// create dicehub_release file in nfs, store releaseID
 	if err = ioutil.WriteFile("dicehub_release", []byte(releaseID), 0644); err != nil {
 		return errors.Wrap(err, "failed to store release id")
 	}
-
 	// write metafile
 	metaInfos := make([]apistructs.MetadataField, 0, 1)
 	metaInfos = append(metaInfos, apistructs.MetadataField{
@@ -329,5 +364,35 @@ func initEnv(cfg *conf.Conf) error {
 		}
 	}
 
+	if cfg.AABInfoStr != "" {
+		if err := json.Unmarshal([]byte(cfg.AABInfoStr), &cfg.AABInfo); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func GetApp(id int64, conf conf.Conf) (*apistructs.ApplicationDTO, error) {
+
+	var resp apistructs.ApplicationFetchResponse
+
+	response, err := httpclient.New(httpclient.WithCompleteRedirect()).
+		Get(conf.DiceOpenapiPrefix).
+		Path(fmt.Sprintf("/api/applications/%d", id)).
+		Header("Authorization", conf.CiOpenapiToken).Do().JSON(&resp)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to request (%s)", err.Error())
+	}
+
+	if !response.IsOK() {
+		return nil, fmt.Errorf(fmt.Sprintf("failed to request, status-code: %d, content-type: %s", response.StatusCode(), response.ResponseHeader("Content-Type")))
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf(fmt.Sprintf("failed to request, error code: %s, error message: %s", resp.Error.Code, resp.Error.Msg))
+	}
+
+	return &resp.Data, nil
 }

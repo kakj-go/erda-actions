@@ -7,6 +7,7 @@ desc: 在对应的数据源中执行 sql 语句
 public: true
 labels:
   configsheet: true
+  project_level_app: true
 supportedErdaVersions:
   - ">= 1.0"
 supportedVersions: # Deprecated. Please use supportedErdaVersions instead.
@@ -22,16 +23,6 @@ params:
   - name: sql
     required: true
     desc: sql 语句
-
-outputs:
-  - name: result
-    desc: 查询结果
-
-
-accessibleAPIs:
-  - path: /api/addons/<addonId>
-    method: GET
-    schema: http
 
 formProps:
   - key: params
@@ -67,3 +58,13 @@ formProps:
         maxRows: 12
       placeholder: 请输入数据
     labelTip: sql语句
+
+outputs:
+  - name: result
+    desc: 查询结果
+
+
+accessibleAPIs:
+  - path: /api/addons/<addonId>
+    method: GET
+    schema: http

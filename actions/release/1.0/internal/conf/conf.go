@@ -22,9 +22,14 @@ type Conf struct {
 	ServicesStr            string `env:"ACTION_SERVICES"`
 	Services               map[string]Service
 	CheckDiceyml           bool   `env:"ACTION_CHECK_DICEYML" default:"true"`
+	TagVersion             string `env:"ACTION_TAG_VERSION"`
+	MigrationType          string `env:"ACTION_MIGRATION_TYPE"`
 	MigrationDir           string `env:"ACTION_MIGRATION_DIR"`
 	MigrationMysqlDatabase string `env:"ACTION_MIGRATION_MYSQL_DATABASE"`
 	CrossCluster           bool   `env:"ACTION_CROSS_CLUSTER" default:"false"`
+	AABInfoStr             string `env:"ACTION_AAB_INFO"`
+	AABInfo                AABInfo
+
 	// env
 	OrgID              int64  `env:"DICE_ORG_ID" required:"true"`
 	OrgName            string `env:"DICE_ORG_NAME" required:"true"`
@@ -54,6 +59,7 @@ type Conf struct {
 
 	DiceVersion  string `env:"DICE_VERSION"`
 	Base64Switch bool   `env:"BASE64_SWITCH"` // base64 开关
+	BuildkitEnable string `env:"BUILDKIT_ENABLE"`
 }
 
 type Service struct {
@@ -66,4 +72,10 @@ type Service struct {
 type MobileData struct {
 	Files   []string `json:"files"`
 	Version string   `json:"version"`
+}
+
+type AABInfo struct {
+	PackageName interface{} `json:"packageName"`
+	VersionCode interface{} `json:"versionCode"`
+	VersionName interface{} `json:"versionName"`
 }

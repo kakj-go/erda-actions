@@ -19,17 +19,14 @@ import (
 
 func handleAPIs() error {
 
-	logrus.Info("开始执行")
+	logrus.Info("start execution")
 	pipelineDTO, err := ExecuteDiceAutotestTestPlans(conf.TestPlan(), conf.Cms())
 	if err != nil {
+		logrus.Info("Failed execution of the plan")
 		return err
 	}
-	if err != nil {
-		logrus.Info("执行计划出问题了")
-		return err
-	}
-	logrus.Info("执行计划成功")
-	logrus.Info("pipeline status %s", pipelineDTO.Status)
+	logrus.Info("test plan is being executed")
+	logrus.Info("pipeline status ", pipelineDTO.Status)
 
 	for {
 		dto, err := pipelineSimpleDetail(PipelineDetailRequest{
@@ -37,9 +34,11 @@ func handleAPIs() error {
 			PipelineID:               pipelineDTO.ID,
 		})
 		if err != nil {
-			return err
+			fmt.Printf(" get pipelineSimpleDetail error %v \n", err)
+			time.Sleep(10 * time.Second)
+			continue
 		}
-		logrus.Info("pipeline status %s", pipelineDTO.Status)
+		logrus.Info("pipeline status ", pipelineDTO.Status)
 
 		if dto.Status.IsEndStatus() {
 			// get detail info
@@ -47,7 +46,9 @@ func handleAPIs() error {
 				PipelineID: pipelineDTO.ID,
 			})
 			if err != nil {
-				return err
+				fmt.Printf(" get pipelineDetail error %v \n", err)
+				time.Sleep(10 * time.Second)
+				continue
 			}
 
 			logrus.Infof("pipeline %s was done status %v", pipelineDTO.ID, dto.Status.String())
@@ -55,11 +56,18 @@ func handleAPIs() error {
 			runtimeIDs := getDiceTaskRuntimeIDs(dto)
 			err = storeMetaFile(dto.ID, dto.Status.String(), runtimeIDs)
 			if err != nil {
+				err = fmt.Errorf("上报执行信息失败")
+				if conf.IsContinueExecution() {
+					return nil
+				}
 				return err
 			}
 
 			if dto.Status.IsFailedStatus() {
 				err = fmt.Errorf("执行失败")
+				if conf.IsContinueExecution() {
+					return nil
+				}
 				return err
 			}
 
@@ -68,7 +76,6 @@ func handleAPIs() error {
 
 		time.Sleep(10 * time.Second)
 	}
-	return nil
 }
 
 // 执行计划
@@ -110,7 +117,7 @@ func pipelineSimpleDetail(req PipelineDetailRequest) (*apistructs.PipelineDetail
 	var resp apistructs.PipelineDetailResponse
 	response, err := httpclient.New(httpclient.WithCompleteRedirect()).
 		Get(conf.DiceOpenapiPublicUrl()).
-		Path("/api/cicds/actions/pipeline-detail").
+		Path("/api/cicds-project/actions/pipeline-detail").
 		Param("simplePipelineBaseResult", strconv.FormatBool(req.SimplePipelineBaseResult)).
 		Param("pipelineId", strconv.FormatUint(req.PipelineID, 10)).
 		Header("Authorization", conf.DiceOpenapiToken()).Do().JSON(&resp)

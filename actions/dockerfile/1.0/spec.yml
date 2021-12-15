@@ -6,6 +6,8 @@ logoUrl: //terminus-paas.oss-cn-hangzhou.aliyuncs.com/paas-doc/2020/09/28/dadf5a
 displayName: 容器镜像打包
 desc: 针对自定义 dockerfile 打包，产出可运行镜像
 public: true
+labels:
+  project_level_app: true
 supportedVersions: # Deprecated. Please use supportedErdaVersions instead.
   - ">= 3.12"
 supportedErdaVersions:
@@ -23,6 +25,12 @@ params:
   - name: build_args
     type: map
     desc: Dockerfile build args，在这里填写的键值对 会被渲染成为 Dockerfile 中的 ARG
+  - name: image
+    type: map
+    desc: image.name & image.tag
+  - name: registry
+    type: map
+    desc: registry.url & registry.username & registry.password
 
 outputs:
   - name: image

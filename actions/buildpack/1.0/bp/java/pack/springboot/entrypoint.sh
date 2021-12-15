@@ -1,6 +1,8 @@
 #!/bin/bash
 limit_in_bytes=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)
 
+export USER_JAVA_OPTS="$JAVA_OPTS"
+
 # If not default limit_in_bytes in cgroup
 if [ "$limit_in_bytes" -ne "9223372036854771712" ]
 then
@@ -39,6 +41,12 @@ then
     echo JAVA_OPTS=$JAVA_OPTS
 fi
 
+# if user add DISABLE_PRESET_JAVA_OPTS env clear erda JAVA_OPTS
+if [ "${DISABLE_PRESET_JAVA_OPTS}" = "true" ]
+then
+  export JAVA_OPTS="$USER_JAVA_OPTS"
+fi
+
 # spot java agent
 if [ -f /opt/spot/spot-agent/spot-agent.jar ]; then
     export JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/spot/spot-agent/spot-agent.jar"
@@ -47,6 +55,17 @@ fi
 # spot java profiler
 if [ -f /opt/spot/spot-agent/spot-profiler.jar ]; then
     export JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/spot/spot-agent/spot-profiler.jar"
+fi
+
+if [ "${OPEN_JACOCO_AGENT}" = "true" ]
+then
+  echo "OPEN_JACOCO_AGENT"
+  export JACOCO_PORT=${JACOCO_PORT-"6300"}
+  export JACOCO_INCLUDES=${JACOCO_INCLUDES-"*"}
+  export JACOCO_EXCLUDES=${JACOCO_EXCLUDES}
+  export JACOCO_INCLBOOTSTRAPCLASSES=${JACOCO_INCLBOOTSTRAPCLASSES-"false"}
+  export JACOCO_INCLNOLOCATIONCLASSES=${JACOCO_INCLNOLOCATIONCLASSES-"false"}
+  export JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/jacoco/jacocoagent.jar=address=*,port=$JACOCO_PORT,dumponexit=false,output=tcpserver,includes=$JACOCO_INCLUDES,excludes=$JACOCO_EXCLUDES,inclbootstrapclasses=$JACOCO_INCLBOOTSTRAPCLASSES,inclnolocationclasses=$JACOCO_INCLNOLOCATIONCLASSES"
 fi
 
 exec java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar \

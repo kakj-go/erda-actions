@@ -16,6 +16,7 @@ import (
 	"github.com/erda-project/erda-actions/actions/buildpack/1.0/internal/run/bplog"
 	"github.com/erda-project/erda-actions/actions/buildpack/1.0/internal/run/conf"
 	"github.com/erda-project/erda-actions/actions/buildpack/1.0/internal/run/langdetect/types"
+	"github.com/erda-project/erda-actions/pkg/docker"
 	"github.com/erda-project/erda-actions/pkg/dockerfile"
 	"github.com/erda-project/erda/pkg/filehelper"
 	"github.com/erda-project/erda/pkg/strutil"
@@ -180,11 +181,8 @@ func dockerPackBuild() ([]byte, error) {
 	if err := filehelper.CreateFile(tagPushScriptPath, strings.Join(tagPushScript, "\n"), 075); err != nil {
 		return nil, err
 	}
-	cmd := exec.Command("/bin/sh", tagPushScriptPath)
-	cmd.Dir = wd
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	// push image
+	if err = docker.PushByShell(tagPushScriptPath, wd); err != nil {
 		return nil, err
 	}
 
@@ -193,12 +191,25 @@ func dockerPackBuild() ([]byte, error) {
 		return nil, err
 	}
 
+	f, err := os.Open(fmt.Sprintf("%s/build-result", wd))
+	if err != nil {
+		bplog.Println("read build-result fail", err)
+	}
+	defer f.Close()
+
 	err = os.RemoveAll(wd)
 	if err != nil {
 		return nil, err
 	}
 	if err := filehelper.CreateFile(filepath.Join(wd, "pack-result"), string(b), 0644); err != nil {
 		return nil, err
+	}
+	buildResult, err := ioutil.ReadAll(f)
+	if err != nil {
+		bplog.Println("read build-result fail", err)
+	}
+	if err := filehelper.CreateFile(filepath.Join(wd, "build-result"), string(buildResult), 0644); err != nil {
+		bplog.Println("create build-result file fail", err)
 	}
 
 	return b, err

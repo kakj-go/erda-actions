@@ -72,11 +72,12 @@ func handleAPIs() error {
 	// watch pipeline done
 	for {
 		dto, err := pipelineSimpleDetail(PipelineDetailRequest{
-			SimplePipelineBaseResult: true,
-			PipelineID:               pipelineDTO.ID,
+			PipelineID: pipelineDTO.ID,
 		})
 		if err != nil {
-			return err
+			fmt.Printf(" get pipelineSimpleDetail error %v \n", err)
+			time.Sleep(10 * time.Second)
+			continue
 		}
 
 		if dto.Status.IsEndStatus() {
@@ -85,7 +86,9 @@ func handleAPIs() error {
 				PipelineID: pipelineDTO.ID,
 			})
 			if err != nil {
-				return err
+				fmt.Printf(" get pipelineDetail error %v \n", err)
+				time.Sleep(10 * time.Second)
+				continue
 			}
 
 			logrus.Infof("pipeline %s was done status %v", pipelineDTO.ID, dto.Status.String())

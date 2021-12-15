@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/erda-project/erda-actions/pkg/docker"
 	"github.com/erda-project/erda-actions/pkg/render"
 
 	"github.com/labstack/gommon/random"
@@ -30,6 +31,13 @@ func Execute() error {
 	var cfg conf.Conf
 	envconf.MustLoad(&cfg)
 	fmt.Fprintln(os.Stdout, "sucessfully loaded action config")
+
+	// docker login
+	if cfg.LocalRegistryUserName != "" {
+		if err := docker.Login(cfg.LocalRegistry, cfg.LocalRegistryUserName, cfg.LocalRegistryPassword); err != nil {
+			return err
+		}
+	}
 
 	cfgMap := make(map[string]string)
 	cfgMap["CENTRAL_REGISTRY"] = cfg.CentralRegistry
@@ -103,6 +111,31 @@ func packAndPushImage(cfg conf.Conf) error {
 
 	// docker build 业务镜像
 	repo := getRepo(cfg)
+	if cfg.BuildkitEnable == "true" {
+		if err := packWithBuildkit(repo, cfg); err != nil {
+			return err
+		}
+	} else {
+		if err := packWithDocker(repo, cfg); err != nil {
+			return err
+		}
+	}
+	// upload metadata
+	if err := storeMetaFile(&cfg, repo); err != nil {
+		return err
+	}
+
+	cleanCmd := exec.Command("rm", "-rf", compPrefix)
+	cleanCmd.Stdout = os.Stdout
+	cleanCmd.Stderr = os.Stderr
+	if err := cleanCmd.Run(); err != nil {
+		fmt.Fprintf(os.Stdout, "warning, cleanup failed: %v", err)
+	}
+
+	return nil
+}
+
+func packWithDocker(repo string, cfg conf.Conf) error {
 	packCmd := exec.Command("docker", "build",
 		"--build-arg", fmt.Sprintf("DICE_VERSION=%s", cfg.DiceVersion),
 		"--cpu-quota", strconv.FormatFloat(float64(cfg.CPU*100000), 'f', 0, 64),
@@ -118,27 +151,36 @@ func packAndPushImage(cfg conf.Conf) error {
 	fmt.Fprintf(os.Stdout, "successfully build app image: %s\n", repo)
 
 	// docker push 业务镜像至集群 registry
-	appPushCmd := exec.Command("docker", "push", repo)
-	appPushCmd.Stdout = os.Stdout
-	appPushCmd.Stderr = os.Stderr
-	if err := appPushCmd.Run(); err != nil {
+	if err := docker.PushByCmd(repo, ""); err != nil {
 		return err
 	}
-
-	// upload metadata
-	if err := storeMetaFile(&cfg, repo); err != nil {
-		return err
-	}
-
-	cleanCmd := exec.Command("rm", "-rf", compPrefix)
-	cleanCmd.Stdout = os.Stdout
-	cleanCmd.Stderr = os.Stderr
-	if err := cleanCmd.Run(); err != nil {
-		fmt.Fprintf(os.Stdout, "warning, cleanup failed: %v", err)
-	}
-
 	return nil
 }
+
+func packWithBuildkit(repo string, cfg conf.Conf) error {
+	packCmd := exec.Command("buildctl",
+		"--addr",
+		"tcp://buildkitd.default.svc.cluster.local:1234",
+		"--tlscacert=/.buildkit/ca.pem",
+		"--tlscert=/.buildkit/cert.pem",
+		"--tlskey=/.buildkit/key.pem",
+		"build",
+		"--frontend", "dockerfile.v0",
+		"--opt", "build-arg:" + fmt.Sprintf("DICE_VERSION=%s", cfg.DiceVersion),
+		"--local", "context=" + cfg.WorkDir,
+		"--local", "dockerfile=" + cfg.WorkDir,
+		"--output", "type=image,name=" + repo + ",push=true,registry.insecure=true")
+
+	fmt.Fprintf(os.Stdout, "packCmd: %v\n", packCmd.Args)
+	packCmd.Stdout = os.Stdout
+	packCmd.Stderr = os.Stderr
+	if err := packCmd.Run(); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "successfully build app image: %s\n", repo)
+	return  nil
+}
+
 
 // 生成业务镜像名称
 func getRepo(cfg conf.Conf) string {
